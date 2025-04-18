@@ -108,6 +108,7 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
                     solver.setExpectedNumberOfClauses(NBCLAUSES);
                     ip = solver;
 
+                    // Ajout des clauses
                     for (List<Integer> clause : sat.currentDimacs) {
                         int[] dimacClause = new int[clause.size()];
                         for (int i = 0; i < clause.size(); i++) {
@@ -115,10 +116,14 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
                         }
                         solver.addClause(new VecInt(dimacClause));
                     }
-            
-                    for (Integer goalLit : sat.currentGoal) {
-                        solver.addClause(new VecInt(new int[]{goalLit}));
+                    
+                    // Ajout des clauses de but
+                    int[] goal = new int[sat.currentGoal.size()];
+                    for (int i = 0; i < sat.currentGoal.size(); i++) {
+                        goal[i] = sat.currentGoal.get(i);
                     }
+                    System.out.println("Goal: " + Arrays.toString(goal));
+                    solver.addClause(new VecInt(goal));
             
                     if (ip.isSatisfiable()) {
                         System.out.println("Solution found with " + steps + " steps.");

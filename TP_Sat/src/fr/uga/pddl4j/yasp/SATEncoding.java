@@ -396,15 +396,6 @@ public final class SATEncoding {
             }
         }
 
-        // Encodage de la contrainte de progression (au moins une action par étape)
-        for (int step = from; step <= to; step++) {
-            List<Integer> clause = new ArrayList<>();
-            for (int i = 0; i < actions.size(); i++) {
-                clause.add(pair(nb_fluents + i + 1, step));  // ai
-            }
-            actionDisjunctionList.add(clause);
-        }
-
         // Debug: afficher les clauses de disjonction
         // System.out.println("\nClauses de disjonction:");
         // for (List<Integer> clause : actionDisjunctionList) {
@@ -424,16 +415,6 @@ public final class SATEncoding {
                 goalList.add(pair(i + 1, to));
                 // System.out.println("Ajout fluent but positif " + (i+1) + ": " + 
                 //     this.problem.toString(this.problem.getFluents().get(i)));
-                    
-                // Pour chaque fluent positif du même prédicat, ajouter sa négation
-                for (int j = 0; j < this.problem.getFluents().size(); j++) {
-                    if (i != j && this.problem.getFluents().get(i).getSymbol() == 
-                        this.problem.getFluents().get(j).getSymbol()) {
-                        goalList.add(-pair(j + 1, to));
-                        // System.out.println("Ajout fluent but négatif implicite " + (j+1) + ": ¬" + 
-                        //     this.problem.toString(this.problem.getFluents().get(j)));
-                    }
-                }
             }
         }
 
@@ -445,10 +426,6 @@ public final class SATEncoding {
                 //     this.problem.toString(this.problem.getFluents().get(i)));
             }
         }
-
-        // Debug: afficher le but
-        // System.out.println("\nBut à l'étape " + to + ":");
-        // System.out.println(toString(goalList, this.problem));
 
         currentDimacs.addAll(initList);
         currentDimacs.addAll(actionPreconditionList);
@@ -465,9 +442,7 @@ public final class SATEncoding {
 
         // Debug: afficher le but
         System.out.println("\nBut à l'étape " + to + ":");
-        for (Integer x : currentGoal) {
-            System.out.print(x + " ");
-        }
+        System.out.println(toString(currentGoal, this.problem));
         
         System.out.println("Encoding : successfully done (" + (this.currentDimacs.size()
                 + this.currentGoal.size()) + " clauses, " + to + " steps)");
