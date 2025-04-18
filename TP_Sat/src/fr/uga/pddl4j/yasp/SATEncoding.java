@@ -8,8 +8,13 @@ import fr.uga.pddl4j.problem.operator.Action;
 import fr.uga.pddl4j.util.BitVector;
 
 import java.util.List;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import org.sat4j.core.VecInt;
+import org.sat4j.specs.IVecInt;
 
 /**
  * This class implements a planning problem/domain encoding into DIMACS
@@ -63,8 +68,10 @@ public final class SATEncoding {
      */
     private int steps;
 
-    public SATEncoding(Problem problem, int steps) {
+    private Problem problem;
 
+    public SATEncoding(Problem problem, int steps) {
+        this.problem = problem;
         this.steps = steps;
 
         // Encoding of init
@@ -76,89 +83,31 @@ public final class SATEncoding {
         //System.out.println(" fluents = " + nb_fluents );
         final BitVector init = problem.getInitialState().getPositiveFluents();
         
-        // Encoder l'état initial
+        // Initialisation
         for (int i = 0; i < nb_fluents; i++) {
             List<Integer> clause = new ArrayList<>();
-            // Si le fluent est vrai dans l'état initial
             if (init.get(i)) {
-                clause.add(pair(i + 1, 1)); // Fluent i+1 est vrai à l'étape 1
+                // Fluent vrai dans l'état initial
+                clause.add(pair(i + 1, 0));
+                initList.add(clause);
+                // System.out.println("Ajout fluent positif " + (i+1) + " à l'état initial: " + 
+                //     problem.toString(problem.getFluents().get(i)));
             } else {
-                clause.add(-pair(i + 1, 1)); // Fluent i+1 est faux à l'étape 1
-            }
-            initList.add(clause);
-        }
-        
-        // Encoder les préconditions et effets des actions
-        List<Action> actions = problem.getActions();
-        for (int i = 0; i < actions.size(); i++) {
-            Action action = actions.get(i);
-            int actionId = nb_fluents + i + 1; // ID unique pour chaque action
-            
-            // Préconditions : si l'action est exécutée, ses préconditions doivent être satisfaites
-            BitVector precondPos = action.getPrecondition().getPositiveFluents();
-            BitVector precondNeg = action.getPrecondition().getNegativeFluents();
-            
-            for (int j = 0; j < nb_fluents; j++) {
-                if (precondPos.get(j)) {
-                    // Si l'action est exécutée, sa précondition positive doit être vraie
-                    List<Integer> clause = new ArrayList<>();
-                    clause.add(-pair(actionId, 1)); // Non action à l'étape 1
-                    clause.add(pair(j + 1, 1));     // Ou fluent j+1 est vrai à l'étape 1
-                    actionPreconditionList.add(clause);
-                }
-                if (precondNeg.get(j)) {
-                    // Si l'action est exécutée, sa précondition négative doit être vraie
-                    List<Integer> clause = new ArrayList<>();
-                    clause.add(-pair(actionId, 1)); // Non action à l'étape 1
-                    clause.add(-pair(j + 1, 1));    // Ou fluent j+1 est faux à l'étape 1
-                    actionPreconditionList.add(clause);
-                }
-            }
-            
-            /// Effets : si l'action est exécutée, ses effets doivent être appliqués
-            if (!action.getConditionalEffects().isEmpty()) {
-                BitVector effectPos = action.getConditionalEffects().get(0).getEffect().getPositiveFluents();
-                BitVector effectNeg = action.getConditionalEffects().get(0).getEffect().getNegativeFluents();
-                
-                for (int j = 0; j < nb_fluents; j++) {
-                    if (effectPos.get(j)) {
-                        // Si l'action est exécutée, son effet positif doit être vrai
-                        List<Integer> clause = new ArrayList<>();
-                        clause.add(-pair(actionId, 1)); // Non action à l'étape 1
-                        clause.add(pair(j + 1, 2));     // Ou fluent j+1 est vrai à l'étape 2
-                        actionEffectList.add(clause);
-                        
-                        // Ajouter à addList pour le frame axiom
-                        if (!addList.containsKey(j + 1)) {
-                            addList.put(j + 1, new ArrayList<>());
-                        }
-                        addList.get(j + 1).add(actionId);
-                    }
-                    if (effectNeg.get(j)) {
-                        // Si l'action est exécutée, son effet négatif doit être vrai
-                        List<Integer> clause = new ArrayList<>();
-                        clause.add(-pair(actionId, 1)); // Non action à l'étape 1
-                        clause.add(-pair(j + 1, 2));    // Ou fluent j+1 est faux à l'étape 2
-                        actionEffectList.add(clause);
-                        
-                        // Ajouter à delList pour le frame axiom
-                        if (!delList.containsKey(j + 1)) {
-                            delList.put(j + 1, new ArrayList<>());
-                        }
-                        delList.get(j + 1).add(actionId);
-                    }
-                }
-            }
-        }
-        
-        // Encoder le but
-        BitVector goal = problem.getGoal().getPositiveFluents();
-        for (int i = 0; i < nb_fluents; i++) {
-            if (goal.get(i)) {
-                goalList.add(pair(i + 1, steps)); // Le fluent i+1 doit être vrai à l'étape finale
+                // Fluent faux dans l'état initial
+                clause.add(-pair(i + 1, 0));
+                initList.add(clause);
+                // System.out.println("Ajout fluent négatif " + (i+1) + " à l'état initial: " + 
+                //     problem.toString(problem.getFluents().get(i)));
             }
         }
 
+        // Debug: afficher toutes les clauses de l'état initial
+        // System.out.println("\nClauses de l'état initial:");
+        // for (List<Integer> clause : initList) {
+        //     System.out.println(toString(clause, problem));
+        // }
+
+        
         // Makes DIMACS encoding from 1 to steps
         encode(1, steps);
     }
@@ -254,119 +203,273 @@ public final class SATEncoding {
 
     private void encode(int from, int to) {
         this.currentDimacs.clear();
-        
-        // Ajouter l'état initial (seulement pour from=1)
-        if (from == 1) {
-            this.currentDimacs.addAll(initList);
-        }
-        
-        // Pour chaque étape
-        for (int step = from; step <= to; step++) {
-            
-            // Encoder les préconditions des actions à cette étape
-            for (List<Integer> clause : actionPreconditionList) {
-                List<Integer> newClause = new ArrayList<>();
-                for (Integer lit : clause) {
-                    int[] unpaired = unpair(Math.abs(lit));
-                    int bitnum = unpaired[0];
-                    int oldStep = unpaired[1];
-                    
-                    // Ajuster l'étape
-                    int adjustedLit = (lit > 0) ? 
-                        pair(bitnum, step + (oldStep - 1)) : 
-                        -pair(bitnum, step + (oldStep - 1));
-                    
-                    newClause.add(adjustedLit);
-                }
-                this.currentDimacs.add(newClause);
-            }
-            
-            // Encoder les effets des actions à cette étape
-            if (step < to) { // On n'encode pas les effets pour la dernière étape
-                for (List<Integer> clause : actionEffectList) {
-                    List<Integer> newClause = new ArrayList<>();
-                    for (Integer lit : clause) {
-                        int[] unpaired = unpair(Math.abs(lit));
-                        int bitnum = unpaired[0];
-                        int oldStep = unpaired[1];
-                        
-                        // Ajuster l'étape
-                        int adjustedLit = (lit > 0) ? 
-                            pair(bitnum, step + (oldStep - 1)) : 
-                            -pair(bitnum, step + (oldStep - 1));
-                        
-                        newClause.add(adjustedLit);
-                    }
-                    this.currentDimacs.add(newClause);
-                }
-            }
-            
-            // Encoder les transitions d'état (frame axioms)
-            if (step < to) {
-                // Pour chaque fluent
-                for (int fluent = 1; fluent <= addList.size() + delList.size(); fluent++) {
-                    // Frame axiom positif : si un fluent est vrai à l'étape t+1, c'est qu'il était vrai à t ou qu'une action l'a rendu vrai
-                    List<Integer> posFrame = new ArrayList<>();
-                    posFrame.add(-pair(fluent, step + 1)); // Non fluent à t+1
-                    posFrame.add(pair(fluent, step));      // Ou fluent à t
-                    
-                    // Ou une action qui ajoute ce fluent
-                    if (addList.containsKey(fluent)) {
-                        for (Integer action : addList.get(fluent)) {
-                            posFrame.add(pair(action, step));
-                        }
-                    }
-                    
-                    this.currentDimacs.add(posFrame);
-                    
-                    // Frame axiom négatif : si un fluent est faux à l'étape t+1, c'est qu'il était faux à t ou qu'une action l'a rendu faux
-                    List<Integer> negFrame = new ArrayList<>();
-                    negFrame.add(pair(fluent, step + 1));  // Fluent à t+1
-                    negFrame.add(-pair(fluent, step));     // Ou non fluent à t
-                    
-                    // Ou une action qui supprime ce fluent
-                    if (delList.containsKey(fluent)) {
-                        for (Integer action : delList.get(fluent)) {
-                            negFrame.add(pair(action, step));
-                        }
-                    }
-                    
-                    this.currentDimacs.add(negFrame);
-                }
-            }
-            
-            // Encoder la disjonction des actions (au plus une action par étape)
-            if (step <= to) {
-                int nbFluents = addList.size() + delList.size();
-                int nbActions = actionPreconditionList.size() / (2 * nbFluents); // Estimation du nombre d'actions
-                
-                for (int a1 = nbFluents + 1; a1 < nbFluents + nbActions; a1++) {
-                    for (int a2 = a1 + 1; a2 <= nbFluents + nbActions; a2++) {
-                        List<Integer> mutexClause = new ArrayList<>();
-                        mutexClause.add(-pair(a1, step));
-                        mutexClause.add(-pair(a2, step));
-                        this.currentDimacs.add(mutexClause);
-                    }
-                }
-            }
-        }
-        
-        // Encoder le but
         this.currentGoal.clear();
-        for (Integer lit : goalList) {
-            int[] unpaired = unpair(Math.abs(lit));
-            int bitnum = unpaired[0];
-            
-            // Ajuster l'étape pour le but
-            int adjustedLit = (lit > 0) ? 
-                pair(bitnum, to) : 
-                -pair(bitnum, to);
-            
-            this.currentGoal.add(adjustedLit);
+        this.actionPreconditionList.clear();
+        this.actionEffectList.clear();
+        this.stateTransitionList.clear();
+        this.addList.clear();
+        this.delList.clear();
+        this.actionDisjunctionList.clear();
+        this.goalList.clear();
+        
+        // Encodage des actions
+        // System.out.println("\nEncodage des actions:");
+        
+        final int nb_fluents = this.problem.getFluents().size();
+        final List<Action> actions = this.problem.getActions();
+        
+        for (int step = from; step <= to; step++) {
+            for (int i = 0; i < actions.size(); i++) {
+                Action action = actions.get(i);
+                int actionVar = pair(nb_fluents + i + 1, step);
+                
+                // System.out.println("\nAction (" + this.problem.toShortString(action) + ") à l'étape " + step + ":");
+                
+                // 1. Préconditions : ai → precond(ai) ≡ ¬ai ∨ precond(ai)
+                BitVector precPos = action.getPrecondition().getPositiveFluents();
+                for (int j = 0; j < nb_fluents; j++) {
+                    if (precPos.get(j)) {
+                        List<Integer> clause = new ArrayList<>();
+                        clause.add(-actionVar);           // ¬ai
+                        clause.add(pair(j + 1, step));   // ∨ precond
+                        actionPreconditionList.add(clause);
+                        // System.out.println("  Précondition positive: " + 
+                        //     this.problem.toString(this.problem.getFluents().get(j)));
+                    }
+                }
+
+                BitVector precNeg = action.getPrecondition().getNegativeFluents();
+                for (int j = 0; j < nb_fluents; j++) {
+                    if (precNeg.get(j)) {
+                        List<Integer> clause = new ArrayList<>();
+                        clause.add(-actionVar);           // ¬ai
+                        clause.add(-pair(j + 1, step));  // ∨ ¬precond
+                        actionPreconditionList.add(clause);
+                        // System.out.println("  Précondition négative: " + 
+                        //     this.problem.toString(this.problem.getFluents().get(j)));
+                    }
+                }
+
+                // 2. Effets positifs : ai → effect+(ai) ≡ ¬ai ∨ effect+(ai)
+                BitVector addEffects = action.getUnconditionalEffect().getPositiveFluents();
+                for (int j = 0; j < nb_fluents; j++) {
+                    if (addEffects.get(j)) {
+                        List<Integer> clause = new ArrayList<>();
+                        clause.add(-actionVar);               // ¬ai
+                        clause.add(pair(j + 1, step + 1));   // ∨ effect+ à l'étape suivante
+                        actionEffectList.add(clause);
+                        // System.out.println("  Effet positif: " + 
+                        //     this.problem.toString(this.problem.getFluents().get(j)));
+                    }
+                }
+
+                // 3. Effets négatifs : ai → ¬effect-(ai) ≡ ¬ai ∨ ¬effect-(ai)
+                BitVector delEffects = action.getUnconditionalEffect().getNegativeFluents();
+                for (int j = 0; j < nb_fluents; j++) {
+                    if (delEffects.get(j)) {
+                        List<Integer> clause = new ArrayList<>();
+                        clause.add(-actionVar);               // ¬ai
+                        clause.add(-pair(j + 1, step + 1));  // ∨ ¬effect- à l'étape suivante
+                        actionEffectList.add(clause);
+                        // System.out.println("  Effet négatif: " + 
+                        //     this.problem.toString(this.problem.getFluents().get(j)));
+                    }
+                }
+            }
         }
 
+        // Debug: afficher toutes les clauses des actions
+        // System.out.println("\nClauses des préconditions:");
+        // for (List<Integer> clause : actionPreconditionList) {
+        //     System.out.println(toString(clause, this.problem));
+        // }
+
+        // System.out.println("\nClauses des effets:");
+        // for (List<Integer> clause : actionEffectList) {
+        //     System.out.println(toString(clause, this.problem));
+        // }
+
+
+        // Encodage des transitions d'états
+        // System.out.println("\nEncodage des transitions d'états:");
+
+        // Construction des listes add et del pour chaque fluent
+        // System.out.println("\nConstruction des listes add/del:");
+        for (int i = 0; i < actions.size(); i++) {
+            Action action = actions.get(i);
+            // System.out.println("\nAction: " + this.problem.toShortString(action));
+            
+            BitVector addEffects = action.getUnconditionalEffect().getPositiveFluents();
+            BitVector delEffects = action.getUnconditionalEffect().getNegativeFluents();
+            
+            // Pour chaque fluent qui est un effet positif de l'action
+            for (int j = 0; j < nb_fluents; j++) {
+                if (addEffects.get(j)) {
+                    if (!addList.containsKey(j)) {
+                        addList.put(j, new ArrayList<>());
+                    }
+                    addList.get(j).add(nb_fluents + i + 1);
+                    // System.out.println("  Ajout à addList[" + j + "]: " + 
+                    //     this.problem.toString(this.problem.getFluents().get(j)) +
+                    //     " produit par " + this.problem.toShortString(action));
+                }
+            }
+            
+            // Pour chaque fluent qui est un effet négatif de l'action
+            for (int j = 0; j < nb_fluents; j++) {
+                if (delEffects.get(j)) {
+                    if (!delList.containsKey(j)) {
+                        delList.put(j, new ArrayList<>());
+                    }
+                    delList.get(j).add(nb_fluents + i + 1);
+                    // System.out.println("  Ajout à delList[" + j + "]: " + 
+                    //     this.problem.toString(this.problem.getFluents().get(j)) +
+                    //     " supprimé par " + this.problem.toShortString(action));
+                }
+            }
+        }
+
+        // System.out.println("\nClauses de transition d'état:");
+        for (int step = from; step < to; step++) {
+            // System.out.println("\nÉtape " + step + ":");
+            for (int f = 0; f < nb_fluents; f++) {
+                // 1. ¬fi ∧ fi+1 → ∨ ai devient fi ∨ ¬fi+1 ∨ (∨ ai)
+                if (addList.containsKey(f)) {
+                    List<Integer> clause = new ArrayList<>();
+                    clause.add(pair(f + 1, step));      
+                    clause.add(-pair(f + 1, step + 1)); 
+                    for (Integer actionNum : addList.get(f)) {
+                        clause.add(pair(actionNum, step));
+                    }
+                    stateTransitionList.add(clause);
+                    // System.out.println("  Transition positive pour " + 
+                    //     this.problem.toString(this.problem.getFluents().get(f)) + 
+                    //     " : " + toString(clause, this.problem));
+                }
+
+                // 2. fi ∧ ¬fi+1 → ∨ ai devient ¬fi ∨ fi+1 ∨ (∨ ai)
+                if (delList.containsKey(f)) {
+                    List<Integer> clause = new ArrayList<>();
+                    clause.add(-pair(f + 1, step));     
+                    clause.add(pair(f + 1, step + 1));  
+                    for (Integer actionNum : delList.get(f)) {
+                        clause.add(pair(actionNum, step));
+                    }
+                    stateTransitionList.add(clause);
+                    // System.out.println("  Transition négative pour " + 
+                    //     this.problem.toString(this.problem.getFluents().get(f)) + 
+                    //     " : " + toString(clause, this.problem));
+                }
+            }
+        }
+
+        // Debug: afficher les clauses de transition
+        // System.out.println("\nClauses de transition:");
+        // for (List<Integer> clause : stateTransitionList) {
+        //     System.out.println(toString(clause, this.problem));
+        // }
+
+        // // Encodage de la disjonction des actions (exclusion mutuelle)
+        // System.out.println("\nEncodage des disjonctions d'actions:");
+        actionDisjunctionList.clear();
+
+        for (int step = from; step <= to; step++) {
+            // Pour chaque paire d'actions (ai, aj)
+            for (int i = 0; i < actions.size(); i++) {
+                for (int j = i + 1; j < actions.size(); j++) {
+                    List<Integer> clause = new ArrayList<>();
+                    
+                    // Encode ¬ai ∨ ¬aj
+                    int actionVar1 = pair(nb_fluents + i + 1, step);
+                    int actionVar2 = pair(nb_fluents + j + 1, step);
+                    
+                    clause.add(-actionVar1);  // ¬ai
+                    clause.add(-actionVar2);  // ¬aj
+                    
+                    actionDisjunctionList.add(clause);
+                    
+                    // System.out.println("Disjonction entre " + 
+                    //     this.problem.toShortString(actions.get(i)) + " et " +
+                    //     this.problem.toShortString(actions.get(j)) + 
+                    //     " à l'étape " + step);
+                }
+            }
+        }
+
+        // Encodage de la contrainte de progression (au moins une action par étape)
+        for (int step = from; step <= to; step++) {
+            List<Integer> clause = new ArrayList<>();
+            for (int i = 0; i < actions.size(); i++) {
+                clause.add(pair(nb_fluents + i + 1, step));  // ai
+            }
+            actionDisjunctionList.add(clause);
+        }
+
+        // Debug: afficher les clauses de disjonction
+        // System.out.println("\nClauses de disjonction:");
+        // for (List<Integer> clause : actionDisjunctionList) {
+        //     System.out.println(toString(clause, this.problem));
+        // }
+
+        // Encodage du but
+        final BitVector goalPos = this.problem.getGoal().getPositiveFluents(); // g+
+        final BitVector goalNeg = this.problem.getGoal().getNegativeFluents(); // g-
+        goalList.clear();
+
+        // System.out.println("\nEncodage du but:");
+
+        // 1. Fluents positifs du but (g+)
+        for (int i = 0; i < this.problem.getFluents().size(); i++) {
+            if (goalPos.get(i)) {
+                goalList.add(pair(i + 1, to));
+                // System.out.println("Ajout fluent but positif " + (i+1) + ": " + 
+                //     this.problem.toString(this.problem.getFluents().get(i)));
+                    
+                // Pour chaque fluent positif du même prédicat, ajouter sa négation
+                for (int j = 0; j < this.problem.getFluents().size(); j++) {
+                    if (i != j && this.problem.getFluents().get(i).getSymbol() == 
+                        this.problem.getFluents().get(j).getSymbol()) {
+                        goalList.add(-pair(j + 1, to));
+                        // System.out.println("Ajout fluent but négatif implicite " + (j+1) + ": ¬" + 
+                        //     this.problem.toString(this.problem.getFluents().get(j)));
+                    }
+                }
+            }
+        }
+
+        // 2. Fluents négatifs explicites du but (g-)
+        for (int i = 0; i < this.problem.getFluents().size(); i++) {
+            if (goalNeg.get(i)) {
+                goalList.add(-pair(i + 1, to));
+                // System.out.println("Ajout fluent but négatif explicite " + (i+1) + ": " + 
+                //     this.problem.toString(this.problem.getFluents().get(i)));
+            }
+        }
+
+        // Debug: afficher le but
+        // System.out.println("\nBut à l'étape " + to + ":");
+        // System.out.println(toString(goalList, this.problem));
+
+        currentDimacs.addAll(initList);
+        currentDimacs.addAll(actionPreconditionList);
+        currentDimacs.addAll(actionEffectList);
+        currentDimacs.addAll(stateTransitionList);
+        currentDimacs.addAll(actionDisjunctionList);
+        currentGoal.addAll(goalList);
+
+        // Debug: afficher toutes les clauses
+        System.out.println("\nClauses de l'encodage:");
+        for (List<Integer> clause : currentDimacs) {
+            System.out.println(toString(clause, this.problem));
+        }
+
+        // Debug: afficher le but
+        System.out.println("\nBut à l'étape " + to + ":");
+        for (Integer x : currentGoal) {
+            System.out.print(x + " ");
+        }
+        
         System.out.println("Encoding : successfully done (" + (this.currentDimacs.size()
                 + this.currentGoal.size()) + " clauses, " + to + " steps)");
     }
-
 }

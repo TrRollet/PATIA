@@ -33,9 +33,9 @@ solveFF(){
 
     domainFile="domain.pddl"
     problemFile="problem.pddl"
-    timeOut=120
+    timeOut=600
 
-	java -cp ./pddl4j-4.0.0.jar -server -Xms2048m -Xmx2048m fr.uga.pddl4j.planners.statespace.FF $domainFile $problemFile -t $timeOut
+	java -cp ./pddl4j-4.0.0.jar -server -Xms2048m -Xmx2048m fr.uga.pddl4j.planners.statespace.HSP $domainFile $problemFile -t $timeOut
 
     exit 0
 }

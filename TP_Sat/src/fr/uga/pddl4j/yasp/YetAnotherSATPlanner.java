@@ -21,7 +21,6 @@ import org.sat4j.specs.IVecInt;
 import org.sat4j.specs.TimeoutException;
 
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -102,79 +101,57 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
             boolean doSearch = true;
 
             while (doSearch && !(steps > stepmax)) {
-                
-                // Créer un nouvel encodage SAT pour le nombre d'étapes actuel
-                sat = new SATEncoding(problem, steps);
-                
                 try {
-                    // Ajouter toutes les clauses au solveur
-                    for (List<Integer> clause : sat.currentDimacs) {
-                        // Convertir la liste d'entiers en tableau pour VecInt
-                        int[] clauseArray = new int[clause.size()];
-                        for (int i = 0; i < clause.size(); i++) {
-                            clauseArray[i] = clause.get(i);
-                        }
-                        // Ajouter la clause au solveur
-                        IVecInt vecClause = new VecInt(clauseArray);
-                        solver.addClause(vecClause);
-                    }
-                    
-                    // Ajouter la clause du but
-                    int[] goalArray = new int[sat.currentGoal.size()];
-                    for (int i = 0; i < sat.currentGoal.size(); i++) {
-                        goalArray[i] = sat.currentGoal.get(i);
-                    }
-                    IVecInt vecGoal = new VecInt(goalArray);
-                    solver.addClause(vecGoal);
-                    
-                    if (DEBUG) {
-                        System.out.println("Testant la satisfiabilité avec " + steps + " étapes...");
-                    }
-                    
-                    // Vérifier si le problème est satisfiable
-                    if (ip.isSatisfiable()) {
-                        if (DEBUG) {
-                            System.out.println("Solution trouvée en " + steps + " étapes !");
-                        }
-                        
-                        // Obtenir la solution
-                        int[] model = ip.model();
-                        List<Integer> solution = new ArrayList<>();
-                        for (int literal : model) {
-                            solution.add(literal);
-                        }
-                        
-                        // Extraire le plan à partir de la solution
-                        plan = sat.extractPlan(solution, problem);
-                        doSearch = false;
-                    } else {
-                        if (DEBUG) {
-                            System.out.println("Pas de solution en " + steps + " étapes. Essai avec " + (steps + 1) + " étapes...");
-                        }
-                        // Augmenter le nombre d'étapes et recréer le solveur
-                        steps++;
-                        solver = SolverFactory.newDefault();
-                        solver.setTimeout(TIMEOUT);
-                        solver.newVar(MAXVAR);
-                        solver.setExpectedNumberOfClauses(NBCLAUSES);
-                        ip = solver;
-                    }
-                } catch (ContradictionException e) {
-                    if (DEBUG) {
-                        System.out.println("Contradiction détectée avec " + steps + " étapes. Essai avec " + (steps + 1) + " étapes...");
-                    }
-                    // En cas de contradiction, augmenter le nombre d'étapes et recréer le solveur
-                    steps++;
                     solver = SolverFactory.newDefault();
                     solver.setTimeout(TIMEOUT);
                     solver.newVar(MAXVAR);
                     solver.setExpectedNumberOfClauses(NBCLAUSES);
                     ip = solver;
+
+                    for (List<Integer> clause : sat.currentDimacs) {
+                        int[] dimacClause = new int[clause.size()];
+                        for (int i = 0; i < clause.size(); i++) {
+                            dimacClause[i] = clause.get(i);
+                        }
+                        solver.addClause(new VecInt(dimacClause));
+                    }
+            
+                    for (Integer goalLit : sat.currentGoal) {
+                        solver.addClause(new VecInt(new int[]{goalLit}));
+                    }
+            
+                    if (ip.isSatisfiable()) {
+                        System.out.println("Solution found with " + steps + " steps.");
+                        int[] model = ip.model();
+                        
+                        System.out.println("\nModèle trouvé :");
+                        for (int val : model) {
+                            if (val > 0) {
+                                System.out.print(val + " ");
+                            }
+                        }
+                        
+                        plan = sat.extractPlan(Arrays.stream(model).boxed().collect(Collectors.toList()), problem);
+                        doSearch = false;
+                    } else {
+                        System.out.println("No solution with " + steps + " steps, trying " + (steps + 1));
+                        steps++;
+                    }
+            
+                } catch (ContradictionException e) {
+                    System.out.println("Contradiction found with " + steps + " steps, trying " + (steps + 1));
+                    steps++;
                 } catch (TimeoutException e) {
-                    System.out.println("Timeout atteint après " + TIMEOUT + " secondes !");
+                    System.out.println("Timeout with " + steps + " steps");
+                    doSearch = false;
+                } catch (Exception e) {
+                    System.out.println("Error: " + e.getMessage());
+                    e.printStackTrace();
                     doSearch = false;
                 }
             }
+            
+            return plan;
         }
         return plan;
     }
@@ -185,7 +162,7 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
             System.out.println("Invalid command line");
             return;
         }
-
+        
         try {
             // Creates an instance of the PDDL parser
             final Parser parser = new Parser();

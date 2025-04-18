@@ -1,57 +1,138 @@
 (define (domain sokoban)
-    (:requirements :strips :typing)
-    
-    (:types 
-        player box position
-    )
+  	(:requirements :strips :typing)
 
-    (:predicates
-        (at-player ?p - player ?pos - position)
-        (at-box ?b - box ?pos - position)
-        (clear ?pos - position)
-        (is-target ?pos - position)
-        (adjacent ?from ?to - position)
-        (is-accessible ?pos - position)
-    )
+	(:types
+		case - object
+	)
 
-    ;; Déplacement simple du joueur
-    (:action move
-        :parameters (?player - player ?from ?to - position)
-        :precondition (and
-            (at-player ?player ?from)
-            (clear ?to)
-            (adjacent ?from ?to)
-            (is-accessible ?to)
-        )
-        :effect (and
-            (not (at-player ?player ?from))
-            (at-player ?player ?to)
-            (not (clear ?to))
-            (clear ?from)
-            (is-accessible ?from)  ; La position quittée devient accessible
-        )
-    )
+	(:predicates
+		(player ?c - case)
+		(box ?c - case)
+		(clear ?c - case)
+		(aligned-left ?c - case ?c2 - case)
+		(aligned-up ?c - case ?c2 - case)
+	)
 
-    ;; Pousser une boîte
-    (:action push
-        :parameters (?player - player ?box - box ?ppos ?bpos ?tpos - position)
-        :precondition (and
-            (at-player ?player ?ppos)
-            (at-box ?box ?bpos)
-            (clear ?tpos)
-            (adjacent ?ppos ?bpos)
-            (adjacent ?bpos ?tpos)
-            (is-accessible ?tpos)
-        )
-        :effect (and
-            (not (at-player ?player ?ppos))
-            (not (at-box ?box ?bpos))
-            (not (clear ?tpos))
-            (at-player ?player ?bpos)
-            (at-box ?box ?tpos)
-            (clear ?ppos)
-            (is-accessible ?ppos)
-            (is-accessible ?bpos)  ; La position intermédiaire reste accessible
-        )
-    )
+	(:action push-left
+		:parameters (?c1 - case ?c2 - case ?c3 - case)
+		:precondition (and 
+		(player ?c1) 
+		(box ?c2) 
+		(aligned-left ?c3 ?c2) 
+		(aligned-left ?c2 ?c1) 
+		(clear ?c3))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2) 
+		(not (box ?c2)) 
+		(box ?c3) (not 
+		(clear ?c3)) 
+		(clear ?c2))
+	)
+
+
+	(:action push-right
+		:parameters (?c1 - case ?c2 - case ?c3 - case)
+		:precondition (and 
+		(player ?c1) 
+		(box ?c2) 
+		(aligned-left ?c1 ?c2) 
+		(aligned-left ?c2 ?c3) 
+		(clear ?c3))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2) 
+		(not (box ?c2)) 
+		(box ?c3) 
+		(not (clear ?c3)) 
+		(clear ?c2))
+	)
+
+	(:action push-up
+		:parameters (?c1 - case ?c2 - case ?c3 - case)
+		:precondition (and 
+		(player ?c1) 
+		(box ?c2) 
+		(aligned-up ?c3 ?c2) 
+		(aligned-up ?c2 ?c1) 
+		(clear ?c3))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2) 
+		(not (box ?c2)) 
+		(box ?c3) 
+		(not (clear ?c3)) 
+		(clear ?c2))
+	)
+
+
+	(:action push-down
+		:parameters (?c1 - case ?c2 - case ?c3 - case)
+		:precondition (and 
+		(player ?c1) 
+		(box ?c2) 
+		(aligned-up ?c1 ?c2) 
+		(aligned-up ?c2 ?c3) 
+		(clear ?c3))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2) 
+		(not (box ?c2)) 
+		(box ?c3) 
+		(not (clear ?c3)) 
+		(clear ?c2))
+	)
+
+	(:action move-left
+		:parameters (?c1 - case ?c2 - case)
+		:precondition (and 
+		(player ?c1) 
+		(aligned-left ?c2 ?c1) 
+		(clear ?c2))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2))
+	)
+
+	
+	(:action move-right
+		:parameters (?c1 - case ?c2 - case)
+		:precondition (and 
+		(player ?c1) 
+		(aligned-left ?c1 ?c2) 
+		(clear ?c2))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2))
+	)
+
+	(:action move-up
+		:parameters (?c1 - case ?c2 - case)
+		:precondition (and 
+		(player ?c1) 
+		(aligned-up ?c2 ?c1) 
+		(clear ?c2))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2))
+	)
+
+	(:action move-down
+		:parameters (?c1 - case ?c2 - case)
+		:precondition (and 
+		(player ?c1) 
+		(aligned-up ?c1 ?c2) 
+		(clear ?c2))
+
+		:effect (and 
+		(not (player ?c1)) 
+		(player ?c2))
+	)
 )

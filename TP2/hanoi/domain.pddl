@@ -3,7 +3,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (domain hanoi)
-  (:requirements :strips :typing)  ; On enlève disjunctive-preconditions
+  (:requirements :strips :typing)
 
   (:types disc tige)
   (:predicates 

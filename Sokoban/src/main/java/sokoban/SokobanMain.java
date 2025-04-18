@@ -7,7 +7,7 @@ public class SokobanMain {
         SoloGameRunner gameRunner = new SoloGameRunner();
         gameRunner.setAgent(Agent.class);
         // liste des fichiers de test à exécuter
-        gameRunner.setTestCase("test1.json");
+        gameRunner.setTestCase("test8.json");
 
         gameRunner.start();
     }
