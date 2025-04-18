@@ -1,8 +1,0 @@
-sokoban/Board.class
-sokoban/SokobanMain.class
-sokoban/Box.class
-com/codingame/game/Referee.class
-com/codingame/game/Player.class
-sokoban/Cell.class
-sokoban/Pusher.class
-sokoban/Agent.class
