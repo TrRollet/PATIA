@@ -86,27 +86,18 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
             // Intial number of steps of the SAT encoding
             int steps = hlb;
 
-            // Create the SAT encoding
-            SATEncoding sat = new SATEncoding(problem, steps);
-
-            // Create the SAT solver
-            ISolver solver = SolverFactory.newDefault();
-            solver.setTimeout(TIMEOUT);
-            // Prepare the solver to accept MAXVAR variables. MANDATORY for MAXSAT solving
-            solver.newVar(MAXVAR);
-            solver.setExpectedNumberOfClauses(NBCLAUSES);
-            IProblem ip = solver;
-
             // Seach starts here!
             boolean doSearch = true;
 
             while (doSearch && !(steps > stepmax)) {
                 try {
-                    solver = SolverFactory.newDefault();
+                    SATEncoding sat = new SATEncoding(problem, steps);
+            
+                    ISolver solver = SolverFactory.newDefault();
                     solver.setTimeout(TIMEOUT);
                     solver.newVar(MAXVAR);
                     solver.setExpectedNumberOfClauses(NBCLAUSES);
-                    ip = solver;
+                    IProblem ip = solver;
 
                     // Ajout des clauses
                     for (List<Integer> clause : sat.currentDimacs) {
@@ -118,15 +109,13 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
                     }
                     
                     // Ajout des clauses de but
-                    int[] goal = new int[sat.currentGoal.size()];
                     for (int i = 0; i < sat.currentGoal.size(); i++) {
-                        goal[i] = sat.currentGoal.get(i);
+                        int goalLit = sat.currentGoal.get(i);
+                        solver.addClause(new VecInt(new int[]{goalLit}));
                     }
-                    System.out.println("Goal: " + Arrays.toString(goal));
-                    solver.addClause(new VecInt(goal));
-            
+
                     if (ip.isSatisfiable()) {
-                        System.out.println("Solution found with " + steps + " steps.");
+                        System.out.println("Solution trouvée avec " + steps + " étapes.");
                         int[] model = ip.model();
                         
                         System.out.println("\nModèle trouvé :");
@@ -139,18 +128,18 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
                         plan = sat.extractPlan(Arrays.stream(model).boxed().collect(Collectors.toList()), problem);
                         doSearch = false;
                     } else {
-                        System.out.println("No solution with " + steps + " steps, trying " + (steps + 1));
+                        System.out.println("Pas de solution avec " + steps + " étapes, essai avec " + (steps + 1) + " étapes.");
                         steps++;
                     }
             
                 } catch (ContradictionException e) {
-                    System.out.println("Contradiction found with " + steps + " steps, trying " + (steps + 1));
+                    System.out.println("Contradiction trouvée avec " + steps + " étapes, essai avec " + (steps + 1) + " étapes.");
                     steps++;
                 } catch (TimeoutException e) {
-                    System.out.println("Timeout with " + steps + " steps");
+                    System.out.println("Timeout avec " + steps + " étapes");
                     doSearch = false;
                 } catch (Exception e) {
-                    System.out.println("Error: " + e.getMessage());
+                    System.out.println("Erreur: " + e.getMessage());
                     e.printStackTrace();
                     doSearch = false;
                 }

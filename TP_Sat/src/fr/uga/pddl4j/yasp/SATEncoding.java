@@ -88,13 +88,13 @@ public final class SATEncoding {
             List<Integer> clause = new ArrayList<>();
             if (init.get(i)) {
                 // Fluent vrai dans l'état initial
-                clause.add(pair(i + 1, 0));
+                clause.add(pair(i + 1, 1));
                 initList.add(clause);
                 // System.out.println("Ajout fluent positif " + (i+1) + " à l'état initial: " + 
                 //     problem.toString(problem.getFluents().get(i)));
             } else {
                 // Fluent faux dans l'état initial
-                clause.add(-pair(i + 1, 0));
+                clause.add(-pair(i + 1, 1));
                 initList.add(clause);
                 // System.out.println("Ajout fluent négatif " + (i+1) + " à l'état initial: " + 
                 //     problem.toString(problem.getFluents().get(i)));
@@ -435,14 +435,14 @@ public final class SATEncoding {
         currentGoal.addAll(goalList);
 
         // Debug: afficher toutes les clauses
-        System.out.println("\nClauses de l'encodage:");
-        for (List<Integer> clause : currentDimacs) {
-            System.out.println(toString(clause, this.problem));
-        }
+        // System.out.println("\nClauses de l'encodage:");
+        // for (List<Integer> clause : currentDimacs) {
+        //     System.out.println(toString(clause, this.problem));
+        // }
 
         // Debug: afficher le but
-        System.out.println("\nBut à l'étape " + to + ":");
-        System.out.println(toString(currentGoal, this.problem));
+        // System.out.println("\nBut à l'étape " + to + ":");
+        // System.out.println(toString(currentGoal, this.problem));
         
         System.out.println("Encoding : successfully done (" + (this.currentDimacs.size()
                 + this.currentGoal.size()) + " clauses, " + to + " steps)");
