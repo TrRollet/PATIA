@@ -44,13 +44,14 @@ def generate_taquin_pddl(numbers, output_file):
             f.write(f" t{i}")
         
         f.write(" - tile\n    p1")
-        # Création des positions
+        
+        # Positions
         for i in range(2, size*size + 1):
             f.write(f" p{i}")
         
         f.write(" - position\n  )\n\n  (:init\n")
         
-        # Définition des adjacences
+        # Adjacences
         f.write("    ; Adjacences horizontales\n")
         for row in range(size):
             for col in range(size-1):
@@ -66,6 +67,7 @@ def generate_taquin_pddl(numbers, output_file):
                 f.write(f"    (adjacent p{pos+size} p{pos})\n")
         
         f.write("\n    ; Positions initiales\n")
+
         # Configuration initiale
         for i, num in enumerate(numbers, 1):
             if num == 0:
@@ -73,7 +75,7 @@ def generate_taquin_pddl(numbers, output_file):
             else:
                 f.write(f"    (at t{num} p{i})\n")
         
-        # État but
+        # But
         f.write("""  )
 
   (:goal

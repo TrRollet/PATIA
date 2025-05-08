@@ -113,6 +113,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    if args.n < 1:
+        print("Le nombre de disques doit être supérieur à 0.")
+        exit(1)
+        
     next_num = get_next_problem_number()
     output_file = f"hanoi/p{next_num}.pddl"
     print(f"Génération du fichier {output_file}")

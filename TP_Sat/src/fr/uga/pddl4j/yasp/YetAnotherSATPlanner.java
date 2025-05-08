@@ -124,6 +124,7 @@ public class YetAnotherSATPlanner extends AbstractStateSpacePlanner {
                                 System.out.print(val + " ");
                             }
                         }
+                        System.out.println("\n\n");
                         
                         plan = sat.extractPlan(Arrays.stream(model).boxed().collect(Collectors.toList()), problem);
                         doSearch = false;

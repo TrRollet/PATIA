@@ -61,7 +61,7 @@ def generate_pddl_problem(width: int, height: int,
     
     return problem
 
-def run_planner() -> Optional[str]:
+def run_planner(timeout: int = 600) -> Optional[str]:
     """Exécute le planificateur et retourne le plan"""
     try:
         cmd = [
@@ -70,9 +70,8 @@ def run_planner() -> Optional[str]:
             "-server", "-Xms2048m", "-Xmx2048m",
             "fr.uga.pddl4j.planners.statespace.HSP",
             "./domain.pddl", "./problem.pddl",
-            "-t", "600"
+            "-t", str(timeout)
         ]
-        
         result = subprocess.run(cmd, capture_output=True, text=True)
         return parse_plan(result.stdout)
     except Exception as e:
@@ -161,17 +160,17 @@ def parse_level(level_str: str) -> tuple[List[Tuple[int, int]], List[Tuple[int, 
     return walls, goals, boxes, player, width, height
 
 def main():
-    # Vérifier les arguments
-    if len(sys.argv) != 2:
-        print("Usage: python parseProblem.py <numero_niveau>")
-        print("Example: python parseProblem.py 1")
+    # Vérification des arguments
+    if len(sys.argv) not in [2, 3]:
+        print("Usage: python parseProblem.py <numero_niveau> [timeout]")
+        print("Example: python parseProblem.py 1 600")
         sys.exit(1)
     
     try:
         niveau = int(sys.argv[1])
+        timeout = int(sys.argv[2]) if len(sys.argv) == 3 else 600
         fichier = f"config/test{niveau}.json"
         
-        # Vérifier si le fichier existe
         if not os.path.exists(fichier):
             print(f"Erreur: Le niveau {niveau} n'existe pas ({fichier} non trouvé)")
             sys.exit(1)
@@ -180,23 +179,18 @@ def main():
         with open(fichier, 'r') as f:
             level_data = json.load(f)
         
-        # Parser le niveau
         level_str = level_data["testIn"]
         walls, goals, boxes, player, width, height = parse_level(level_str)
-        
-        # Générer le problème PDDL
         problem = generate_pddl_problem(width, height, player, boxes, goals, walls)
         
-        # Écrire le problème dans un fichier
         with open("problem.pddl", 'w') as f:
             f.write(problem)
         
-        # Exécuter le planificateur
-        actions = run_planner()
+        # Résolution du problème
+        actions = run_planner(timeout)
         
         if actions:
             print(f"Plan trouvé pour le niveau {niveau}: {actions}")
-            # Écrire le plan dans un fichier pour l'agent
             with open("plan.txt", 'w') as f:
                 f.write(actions)
         else:
