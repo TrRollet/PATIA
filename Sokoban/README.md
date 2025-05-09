@@ -9,6 +9,7 @@ Puis il faut ouvrir son navigateur et aller à l'adresse suivante : http://local
 
 # Domaine
 Le domaine se trouve dans le fichier [domain.pddl](domain.pddl).
+
 Objets :
 - `case` : case vide
 
